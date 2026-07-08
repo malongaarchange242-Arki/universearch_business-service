@@ -1,0 +1,1 @@
+{"version":3,"file":"authorizeOrg.d.ts","sourceRoot":"","sources":["../../../../internal/content/middleware/authorizeOrg.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,cAAc,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAEvD;;;GAGG;AACH,eAAO,MAAM,YAAY,GACvB,SAAS,cAAc,EACvB,OAAO,YAAY,KAClB,OAAO,CAAC,IAAI,CA+Cd,CAAC"}

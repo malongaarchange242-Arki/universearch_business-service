@@ -1,0 +1,15 @@
+services:
+  business-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: universearch-business-service
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

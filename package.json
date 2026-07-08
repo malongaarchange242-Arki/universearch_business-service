@@ -1,0 +1,33 @@
+{
+  "name": "business-service",
+  "version": "1.0.0",
+  "description": "Unified business service for ads, content and tracking modules",
+  "main": "dist/cmd/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cmd/main.js",
+    "dev": "ts-node cmd/main.ts"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/multipart": "^7.0.0",
+    "@supabase/supabase-js": "^2.38.4",
+    "axios": "^1.15.1",
+    "bullmq": "^5.76.4",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.25.1",
+    "fastify-plugin": "^4.0.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "ioredis": "^5.10.1",
+    "redis": "^6.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/fluent-ffmpeg": "^2.1.28",
+    "@types/node": "^20.10.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
