@@ -51,18 +51,37 @@ const initializeApp = async () => {
         service: 'business-service',
         timestamp: new Date().toISOString(),
     }));
-    exports.app.get('/health/db', async () => {
-        try {
-            await Promise.race([
-                exports.app.supabaseAdmin.from('ads_campaigns').select('id').limit(1),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 5000)),
-            ]);
-            return { database: 'connected' };
-        }
-        catch (error) {
-            exports.app.log.warn({ error }, 'Health DB check failed');
-            return { database: 'error' };
-        }
+    exports.app.route({
+        method: ['GET', 'POST'],
+        url: '/health/db',
+        handler: async () => {
+            try {
+                const supabaseUrl = process.env.SUPABASE_URL;
+                const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+                if (!supabaseUrl || !serviceRoleKey) {
+                    throw new Error('Missing Supabase credentials');
+                }
+                const response = await Promise.race([
+                    fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/`, {
+                        method: 'GET',
+                        headers: {
+                            apikey: serviceRoleKey,
+                            Authorization: `Bearer ${serviceRoleKey}`,
+                            Accept: 'application/json',
+                        },
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 5000)),
+                ]);
+                if (!response.ok && response.status !== 404) {
+                    throw new Error(`Supabase REST returned ${response.status}`);
+                }
+                return { database: 'connected' };
+            }
+            catch (error) {
+                exports.app.log.warn({ err: error }, 'Health DB check failed');
+                return { database: 'error' };
+            }
+        },
     });
     await exports.app.register(async (fastify) => {
         await (0, routes_1.registerBusinessRoutes)(fastify);
