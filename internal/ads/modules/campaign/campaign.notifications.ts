@@ -4,7 +4,7 @@ import axios from 'axios';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 const DEFAULT_NOTIFICATION_SERVICE_URL =
-  'https://universearch-notification-service-3zw2.onrender.com';
+  'https://api.universearch.com';
 
 export interface CampaignNotificationPayload {
   user_ids: string[];
@@ -119,10 +119,10 @@ export const broadcastCampaignNotifications = async (
     const payload: CampaignNotificationPayload = {
       user_ids: userIds,
       type: 'campaign',
-      title: 'Nouveau Post',
+      title: 'Nouvelle annonce',
       message:
         customMessage ||
-        'Universearch vient de faire une annonce, ça peut vous intéressez\nAccedez à la page d\'Accueil pour voir l\'annonce',
+        'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.',
       delivery_types: ['in_app', 'push'],
       data: {
         campaign_id: campaignId,

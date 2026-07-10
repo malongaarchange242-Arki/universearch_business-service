@@ -5,7 +5,9 @@ exports.campaignRoutes = campaignRoutes;
 const campaign_controller_1 = require("./campaign.controller");
 const campaign_service_1 = require("./campaign.service");
 async function campaignRoutes(app) {
-    const campaignService = new campaign_service_1.CampaignService(app.supabase);
+    // Use the service-role Supabase client on the server to bypass RLS for
+    // trusted backend operations (campaign creation/updates performed by admins)
+    const campaignService = new campaign_service_1.CampaignService(app.supabaseAdmin);
     const campaignController = new campaign_controller_1.CampaignController(campaignService);
     // POST /ads/campaign
     app.post('/campaign', campaignController.createCampaign.bind(campaignController));

@@ -14,68 +14,16 @@ export class MediaController {
     try {
       console.log('Upload request received');
       console.log('Content-Type header:', request.headers['content-type']);
-
-      // Support both modes: when @fastify/multipart is configured with
-      // `attachFieldsToBody: true` files are available on `request.body.file`.
-      // Otherwise use the streaming API `request.file()`.
-      const contentType = (request.headers['content-type'] || request.headers['Content-Type'] || '').toString();
-
-      const bodyAny: any = (request as any).body || {};
-      let fileObj: any = bodyAny.file;
-      let uploadedStreamFile: any = null;
-
-      if (!fileObj) {
-        if (typeof (request as any).file === 'function') {
-          try {
-            uploadedStreamFile = await (request as any).file();
-          } catch (e) {
-            // ignore, we'll handle absence below
-            uploadedStreamFile = null;
-          }
-        }
-      }
-
-      if (!fileObj && !uploadedStreamFile) {
-        console.warn('No file in request.body and request.file() returned null');
+      const data = await request.file();
+      console.log('File data:', data ? 'present' : 'null');
+      if (!data) {
         reply.code(400).send({ success: false, error: 'No file uploaded' });
         return;
       }
 
-      // Normalize to buffer, filename and mimetype
-      let buffer: Buffer | null = null;
-      let filename: string = 'upload';
-      let mimetype: string = 'application/octet-stream';
-
-      if (uploadedStreamFile) {
-        buffer = await uploadedStreamFile.toBuffer();
-        filename = uploadedStreamFile.filename;
-        mimetype = uploadedStreamFile.mimetype;
-      } else if (fileObj) {
-        try {
-          if (typeof fileObj.toBuffer === 'function') {
-            buffer = await fileObj.toBuffer();
-          } else if (Buffer.isBuffer(fileObj)) {
-            buffer = fileObj;
-          } else if (fileObj._buf && Buffer.isBuffer(fileObj._buf)) {
-            buffer = fileObj._buf;
-          } else if (fileObj.buffer && Buffer.isBuffer(fileObj.buffer)) {
-            buffer = fileObj.buffer;
-          } else {
-            console.error('Unsupported file object type in request.body', Object.keys(fileObj || {}));
-            return reply.code(400).send({ success: false, error: 'No file uploaded' });
-          }
-        } catch (e) {
-          console.error('Failed to read file buffer from request.body', e);
-          return reply.code(500).send({ success: false, error: 'Failed to read uploaded file content' });
-        }
-
-        filename = fileObj.filename || fileObj.name || filename;
-        mimetype = fileObj.mimetype || fileObj.type || mimetype;
-      }
-
-      if (!buffer) {
-        return reply.code(400).send({ success: false, error: 'Failed to read uploaded file content' });
-      }
+      const buffer = await data.toBuffer();
+      const filename = data.filename;
+      const mimetype = data.mimetype;
 
       // Enforce per-type size limits
       const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB
