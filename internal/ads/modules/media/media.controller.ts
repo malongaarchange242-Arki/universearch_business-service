@@ -14,16 +14,33 @@ export class MediaController {
     try {
       console.log('Upload request received');
       console.log('Content-Type header:', request.headers['content-type']);
-      const data = await request.file();
+
+      let data = await request.file();
+      if (!data) {
+        const bodyAny: any = (request as any).body || {};
+        console.log('Multipart body fallback:', Object.keys(bodyAny));
+        if (bodyAny.file) {
+          data = bodyAny.file;
+        } else if (bodyAny.files?.file) {
+          data = bodyAny.files.file;
+        }
+      }
+
       console.log('File data:', data ? 'present' : 'null');
       if (!data) {
         reply.code(400).send({ success: false, error: 'No file uploaded' });
         return;
       }
 
-      const buffer = await data.toBuffer();
-      const filename = data.filename;
-      const mimetype = data.mimetype;
+      const buffer = await (typeof data.toBuffer === 'function' ? data.toBuffer() : Promise.resolve(Buffer.isBuffer(data) ? data : null));
+      if (!buffer) {
+        console.error('Failed to convert uploaded file to buffer', { dataKeys: Object.keys(data) });
+        reply.code(400).send({ success: false, error: 'Unable to read uploaded file' });
+        return;
+      }
+
+      const filename = data.filename || data.name || `upload_${Date.now()}`;
+      const mimetype = data.mimetype || data.type || 'application/octet-stream';
 
       // Enforce per-type size limits
       const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB
