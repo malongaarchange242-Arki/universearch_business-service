@@ -39,8 +39,8 @@ export class MediaController {
         return;
       }
 
-      const filename = data.filename || data.name || `upload_${Date.now()}`;
-      const mimetype = data.mimetype || data.type || 'application/octet-stream';
+     const filename = data.filename ?? `upload_${Date.now()}`;
+     const mimetype = data.mimetype ?? 'application/octet-stream';
 
       // Enforce per-type size limits
       const IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5MB

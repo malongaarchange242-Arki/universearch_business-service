@@ -6,7 +6,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInstitutionInfo = exports.broadcastCampaignNotifications = exports.getTargetUsers = void 0;
 const axios_1 = __importDefault(require("axios"));
-const DEFAULT_NOTIFICATION_SERVICE_URL = 'https://universearch-notification-service-3zw2.onrender.com';
+const DEFAULT_NOTIFICATION_SERVICE_URL = 'https://api.universearch.com';
 /**
  * Récupérer les utilisateurs à notifier selon les critères de ciblage
  */
@@ -68,9 +68,9 @@ const broadcastCampaignNotifications = async (userIds, campaignId, campaignName,
         const payload = {
             user_ids: userIds,
             type: 'campaign',
-            title: 'Nouveau Post',
+            title: 'Nouvelle annonce',
             message: customMessage ||
-                'Universearch vient de faire une annonce, ça peut vous intéressez\nAccedez à la page d\'Accueil pour voir l\'annonce',
+                'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.',
             delivery_types: ['in_app', 'push'],
             data: {
                 campaign_id: campaignId,
