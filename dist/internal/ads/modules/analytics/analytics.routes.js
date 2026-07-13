@@ -13,6 +13,28 @@ async function analyticsRoutes(app) {
     app.post('/click', analyticsController.recordClick.bind(analyticsController));
     // POST /ads/view
     app.post('/view', analyticsController.recordView.bind(analyticsController));
+    // POST /ads/:adId/view - Alternative route with adId in path
+    app.post('/:adId/view', async (request, reply) => {
+        try {
+            const { adId } = request.params;
+            const { view_duration, user_id } = request.body;
+            const view = await analyticsService.recordView(adId, {
+                view_duration,
+                user_id,
+            });
+            const latestViews = await analyticsService.getViews(adId, 1, 1);
+            reply.send({
+                success: true,
+                data: view,
+                views_count: latestViews.total,
+            });
+        }
+        catch (error) {
+            const message = error.message;
+            const statusCode = message.includes('not found') ? 404 : 500;
+            reply.code(statusCode).send({ success: false, error: message });
+        }
+    });
     // GET /ads/views/:adId
     app.get('/views/:adId', analyticsController.getViews.bind(analyticsController));
     // GET /ads/views-count/:adId

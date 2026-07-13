@@ -40,7 +40,7 @@ exports.recordViewSchema = {
         additionalProperties: false,
         properties: {
             view_duration: {
-                type: 'integer',
+                type: 'number', // Accept both integer and decimal numbers
                 minimum: 0,
                 description: 'Durée de vue en secondes'
             }

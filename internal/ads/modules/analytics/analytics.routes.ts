@@ -17,6 +17,32 @@ export async function analyticsRoutes(app: FastifyInstance) {
   // POST /ads/view
   app.post('/view', analyticsController.recordView.bind(analyticsController));
 
+  // POST /ads/:adId/view - Alternative route with adId in path
+  app.post('/:adId/view', async (request, reply) => {
+    try {
+      const { adId } = request.params as { adId: string };
+      const { view_duration, user_id } = request.body as {
+        view_duration?: number;
+        user_id?: string;
+      };
+      
+      const view = await analyticsService.recordView(adId, {
+        view_duration,
+        user_id,
+      });
+      const latestViews = await analyticsService.getViews(adId, 1, 1);
+      reply.send({
+        success: true,
+        data: view,
+        views_count: latestViews.total,
+      });
+    } catch (error) {
+      const message = (error as Error).message;
+      const statusCode = message.includes('not found') ? 404 : 500;
+      reply.code(statusCode).send({ success: false, error: message });
+    }
+  });
+
   // GET /ads/views/:adId
   app.get('/views/:adId', analyticsController.getViews.bind(analyticsController));
 
