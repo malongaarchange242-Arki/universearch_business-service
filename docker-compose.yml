@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: universearch-business-service
     env_file:
       - .env
     environment:
@@ -12,4 +11,16 @@ services:
       PORT: 3000
     ports:
       - "3000:3000"
+    restart: unless-stopped
+
+  business-service-notification-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    command: ["node", "dist/internal/content/workers/notification.worker.js"]
     restart: unless-stopped

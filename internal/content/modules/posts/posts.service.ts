@@ -3,6 +3,7 @@
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
+import { addNotificationJob } from '../../queues/notification.queue';
 
 const DEFAULT_NOTIFICATION_SERVICE_URL =
   'https://universearch-notification-service.onrender.com';
@@ -511,47 +512,22 @@ export const createPost = async (
   // 🚀 Trigger follower notifications via notification service
   try {
     if (isInstitutionAuthorType(authorType)) {
-      const followerIds = await getFollowers(supabase, authorId, authorType);
-      if (followerIds.length > 0) {
-        const entityInfo = await getEntityInfo(supabase, authorId, authorType);
+      await addNotificationJob({
+        postId: createdPost.id,
+        authorId,
+        authorType,
+      });
 
-        const institutionName =
-          entityInfo?.sigle ||
-          entityInfo?.name ||
-          'Institution';
-
-        const notificationServiceUrl =
-          process.env.NOTIFICATION_SERVICE_URL ||
-          DEFAULT_NOTIFICATION_SERVICE_URL;
-
-        const response = await axios.post(
-          `${notificationServiceUrl}/api/notifications/broadcast`,
-          {
-            type: 'new_post',
-            title: 'Nouveau post',
-            message: `${institutionName} a publié un nouveau post`,
-            data: {
-              post_id: createdPost.id,
-              author_id: authorId,
-              author_type: authorType,
-              institution_id: entityInfo?.id,
-              institution_name: entityInfo?.name,
-              institution_sigle: entityInfo?.sigle,
-              institution_logo_url: entityInfo?.logo_url,
-              institution_description: entityInfo?.description,
-            },
-            user_ids: followerIds,
-          }
-        );
-
-        console.log('Notifications triggered for', followerIds.length, 'followers:', response.data);
-      } else {
-        console.log('No followers to notify for', authorType, authorId);
-      }
+      console.log(
+        'Queued follower notification job for post',
+        createdPost.id,
+        'author',
+        authorId
+      );
     }
   } catch (err) {
-    console.error('Failed to trigger notifications:', err);
-    // Continue even if notification trigger fails
+    console.error('Failed to queue follower notification job:', err);
+    // Continue even if notification queueing fails
   }
 
   return createdPost;

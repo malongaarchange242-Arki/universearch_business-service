@@ -2,9 +2,25 @@ import 'dotenv/config';
 import http from 'http';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
-import { Job, Worker } from 'bullmq';
+import { Job, Worker, Queue } from 'bullmq';
 import { NOTIFICATION_QUEUE, NotificationJobData } from '../queues/notification.queue';
 import { redisConnection } from '../queues/videoProcessing.queue';
+
+const NOTIFICATION_DLQ = process.env.NOTIFICATION_DLQ || 'notification-dlq';
+
+// Dead-letter queue for failed notification jobs
+const notificationDlq = new Queue<NotificationJobData, void>(
+  NOTIFICATION_DLQ,
+  {
+    connection: redisConnection,
+    defaultJobOptions: {
+      removeOnComplete: {
+        age: Number(process.env.NOTIFICATION_DLQ_COMPLETE_TTL_SECONDS || 2_592_000), // 30 days
+        count: Number(process.env.NOTIFICATION_DLQ_COMPLETE_KEEP || 10_000),
+      },
+    },
+  }
+);
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -235,37 +251,107 @@ const notifyFollowers = async (
 };
 
 const processNotificationJob = async (job: Job<NotificationJobData, void>) => {
+  const startTime = Date.now();
+  const attempt = (job.attemptsMade || 0) + 1;
+  const maxAttempts = job.opts?.attempts || 3;
+
   console.log(
     JSON.stringify({
       event: 'notification_job_start',
       jobId: job.id,
-      attempt: (job.attemptsMade || 0) + 1,
-      maxAttempts: job.opts?.attempts,
+      attempt,
+      maxAttempts,
       postId: job.data.postId,
+      authorId: job.data.authorId,
       timestamp: new Date().toISOString(),
     })
   );
 
-  const { data: postData, error: postError } = await supabase
-    .from('posts')
-    .select(
-      'id, author_id, author_type, titre, description, media_url, thumbnail_url, media_type, media_processing_status, media_processing_error, statut, date_creation'
-    )
-    .eq('id', job.data.postId)
-    .single();
+  try {
+    const { data: postData, error: postError } = await supabase
+      .from('posts')
+      .select(
+        'id, author_id, author_type, titre, description, media_url, thumbnail_url, media_type, media_processing_status, media_processing_error, statut, date_creation'
+      )
+      .eq('id', job.data.postId)
+      .single();
 
-  if (postError || !postData) {
-    throw new Error(`Notification worker failed to fetch post: ${postError?.message || 'no post found'}`);
+    if (postError || !postData) {
+      const errorMsg = `Failed to fetch post: ${postError?.message || 'no post found'}`;
+      throw new Error(errorMsg);
+    }
+
+    const entityInfo = await resolveAuthorEntity(supabase, job.data.authorId, job.data.authorType);
+    const followerIds = await getFollowers(
+      supabase,
+      entityInfo?.id || job.data.authorId,
+      job.data.authorType
+    );
+
+    await notifyFollowers(followerIds, postData, entityInfo);
+
+    const duration = Date.now() - startTime;
+    console.log(
+      JSON.stringify({
+        event: 'notification_job_completed',
+        jobId: job.id,
+        postId: job.data.postId,
+        durationMs: duration,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const duration = Date.now() - startTime;
+
+    // Check if this is the final attempt - if so, send to DLQ
+    if (attempt >= maxAttempts) {
+      console.error(
+        JSON.stringify({
+          event: 'notification_job_dlq',
+          jobId: job.id,
+          postId: job.data.postId,
+          attempt,
+          maxAttempts,
+          error: errorMsg,
+          durationMs: duration,
+          timestamp: new Date().toISOString(),
+        })
+      );
+
+      // Send to DLQ
+      try {
+        await notificationDlq.add('notify-followers-dlq', job.data, {
+          jobId: `dlq-${job.id}-${Date.now()}`,
+        });
+      } catch (dlqError) {
+        console.error(
+          JSON.stringify({
+            event: 'notification_dlq_add_failed',
+            jobId: job.id,
+            postId: job.data.postId,
+            error: dlqError instanceof Error ? dlqError.message : String(dlqError),
+            timestamp: new Date().toISOString(),
+          })
+        );
+      }
+    } else {
+      console.warn(
+        JSON.stringify({
+          event: 'notification_job_retry',
+          jobId: job.id,
+          postId: job.data.postId,
+          attempt,
+          maxAttempts,
+          error: errorMsg,
+          durationMs: duration,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }
+
+    throw error;
   }
-
-  const entityInfo = await resolveAuthorEntity(supabase, job.data.authorId, job.data.authorType);
-  const followerIds = await getFollowers(
-    supabase,
-    entityInfo?.id || job.data.authorId,
-    job.data.authorType
-  );
-
-  await notifyFollowers(followerIds, postData, entityInfo);
 };
 
 const defaultConcurrency = Number(process.env.NOTIFICATION_WORKER_CONCURRENCY || 1);
@@ -293,22 +379,73 @@ worker.on('completed', (job) => {
 });
 
 worker.on('failed', (job, error) => {
+  const attempt = (job?.attemptsMade || 0) + 1;
+  const maxAttempts = job?.opts?.attempts || 3;
+
+  // Only log final failure here - DLQ logging is in processNotificationJob
+  if (attempt >= maxAttempts) {
+    console.error(
+      JSON.stringify({
+        event: 'notification_job_final_failed',
+        jobId: job?.id || 'unknown',
+        postId: job?.data?.postId,
+        attempt,
+        maxAttempts,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }
+});
+
+worker.on('error', (failedReason) => {
   console.error(
     JSON.stringify({
-      event: 'notification_job_failed',
-      jobId: job?.id || 'unknown',
-      attempt: (job?.attemptsMade || 0) + 1,
-      maxAttempts: job?.opts?.attempts,
-      postId: job?.data?.postId,
-      error: error instanceof Error ? error.message : String(error),
+      event: 'notification_worker_error',
+      error: failedReason instanceof Error ? failedReason.message : String(failedReason),
+      timestamp: new Date().toISOString(),
+    })
+  );
+});
+
+worker.on('stalled', (jobId) => {
+  console.warn(
+    JSON.stringify({
+      event: 'notification_job_stalled',
+      jobId,
       timestamp: new Date().toISOString(),
     })
   );
 });
 
 const shutdown = async () => {
-  await worker.close();
-  await redisConnection.quit();
+  console.log(
+    JSON.stringify({
+      event: 'notification_worker_shutting_down',
+      timestamp: new Date().toISOString(),
+    })
+  );
+
+  try {
+    await worker.close();
+    await notificationDlq.close();
+    await redisConnection.quit();
+    console.log(
+      JSON.stringify({
+        event: 'notification_worker_shutdown_complete',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'notification_worker_shutdown_error',
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }
+
   process.exit(0);
 };
 
@@ -319,8 +456,11 @@ console.log(
   JSON.stringify({
     event: 'notification_worker_started',
     queue: NOTIFICATION_QUEUE,
+    dlq: NOTIFICATION_DLQ,
     concurrency: defaultConcurrency,
-    redisUrl: process.env.REDIS_URL,
+    maxAttempts: Number(process.env.NOTIFICATION_JOB_ATTEMPTS || 3),
+    backoffMs: Number(process.env.NOTIFICATION_JOB_BACKOFF_MS || 10000),
+    redisUrl: process.env.REDIS_URL ? '✓ configured' : 'localhost',
     timestamp: new Date().toISOString(),
   })
 );

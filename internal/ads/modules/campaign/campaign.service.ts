@@ -259,6 +259,7 @@ export class CampaignService {
       // Envoyer les notifications
       console.log('🚀 Calling broadcastCampaignNotifications with', targetUserIds.length, 'users');
       const result = await broadcastCampaignNotifications(
+        this.supabase,
         targetUserIds,
         campaign.id || '',
         institutionName,
@@ -415,6 +416,7 @@ export class CampaignService {
 
       // Envoyer les notifications
       const result = await broadcastCampaignNotifications(
+        this.supabase,
         targetUserIds,
         campaign.id || '',
         institutionName,

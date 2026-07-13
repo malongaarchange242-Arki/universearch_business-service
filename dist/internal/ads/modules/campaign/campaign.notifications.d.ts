@@ -21,9 +21,9 @@ export declare const getTargetUsers: (supabase: SupabaseClient, targetAudience: 
     maxAge?: number;
 }) => Promise<string[]>;
 /**
- * Envoyer des notifications broadcast pour une campagne
+ * Envoyer des notifications broadcast pour une campagne avec personnalisation
  */
-export declare const broadcastCampaignNotifications: (userIds: string[], campaignId: string, campaignName: string, campaignTitle: string, campaignDescription: string, mediaUrl?: string | null, customMessage?: string) => Promise<{
+export declare const broadcastCampaignNotifications: (supabase: SupabaseClient, userIds: string[], campaignId: string, campaignName: string, campaignTitle: string, campaignDescription: string, mediaUrl?: string | null, customMessage?: string) => Promise<{
     success: boolean;
     deliveredCount: number;
     errors: unknown[];

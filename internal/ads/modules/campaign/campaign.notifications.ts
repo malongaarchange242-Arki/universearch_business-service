@@ -83,9 +83,70 @@ export const getTargetUsers = async (
 };
 
 /**
- * Envoyer des notifications broadcast pour une campagne
+ * Récupérer les informations des utilisateurs (id, nom, prenom)
+ */
+const getUsersInfo = async (
+  supabase: SupabaseClient,
+  userIds: string[]
+): Promise<{ id: string; prenom?: string; nom?: string }[]> => {
+  if (userIds.length === 0) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom')
+      .in('id', userIds);
+
+    if (error) {
+      console.error('Error fetching user info:', error);
+      return userIds.map(id => ({ id }));
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error in getUsersInfo:', err);
+    return userIds.map(id => ({ id }));
+  }
+};
+
+/**
+ * Déterminer si c'est le matin ou le soir selon l'heure actuelle
+ */
+const getTimeGreeting = (): 'matin' | 'soir' => {
+  const hour = new Date().getHours();
+  
+  // Matin: 5h à 17h59
+  // Soir: 18h à 4h59
+  if (hour >= 5 && hour < 18) {
+    return 'matin';
+  }
+  return 'soir';
+};
+
+/**
+ * Construire un message personnalisé avec le nom de l'utilisateur et le moment de la journée
+ */
+const buildPersonalizedMessage = (
+  userName?: string,
+  customMessage?: string
+): string => {
+  const baseMessage =
+    customMessage ||
+    'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.';
+
+  if (!userName) return baseMessage;
+
+  const greeting = getTimeGreeting() === 'matin' ? 'Bonjour' : 'Bonsoir';
+
+  // Ajouter le nom de la personne au début du message
+  return `${greeting} ${userName}, ${baseMessage.charAt(0).toLowerCase() + baseMessage.slice(1)}`;
+};
+
+/**
+ * Envoyer des notifications broadcast pour une campagne avec personnalisation
  */
 export const broadcastCampaignNotifications = async (
+  supabase: SupabaseClient,
   userIds: string[],
   campaignId: string,
   campaignName: string,
@@ -116,48 +177,75 @@ export const broadcastCampaignNotifications = async (
       notificationServiceTimeoutMs
     );
 
-    const payload: CampaignNotificationPayload = {
-      user_ids: userIds,
-      type: 'campaign',
-      title: 'Nouvelle annonce',
-      message:
-        customMessage ||
-        'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.',
-      delivery_types: ['in_app', 'push'],
-      data: {
-        campaign_id: campaignId,
-        campaign_name: campaignName,
-        campaign_title: campaignTitle,
-        campaign_description: campaignDescription,
-        media_url: mediaUrl || null,
-      },
-    };
+    // Récupérer les infos des utilisateurs (prenom, nom)
+    const usersInfo = await getUsersInfo(supabase, userIds);
 
-    const response = await axios.post<BroadcastNotificationsResponse>(
-      `${notificationServiceUrl}/api/notifications/broadcast`,
-      payload,
-      {
-        timeout: 60000,  // 60 seconds
-        headers: {
-          'Content-Type': 'application/json',
-        },
+    let deliveredCount = 0;
+    const errors: unknown[] = [];
+
+    // Envoyer les notifications individuellement avec personnalisation
+    const chunkSize = 100; // Batch par 100 pour performance
+    for (let i = 0; i < usersInfo.length; i += chunkSize) {
+      const chunk = usersInfo.slice(i, i + chunkSize);
+
+      for (const user of chunk) {
+        const userName = user.prenom && user.nom ? `${user.prenom} ${user.nom}` : user.prenom || user.nom || 'Cher utilisateur';
+        const personalizedMessage = buildPersonalizedMessage(userName, customMessage);
+
+        const payload: CampaignNotificationPayload = {
+          user_ids: [user.id],
+          type: 'campaign',
+          title: 'Nouvelle annonce',
+          message: personalizedMessage,
+          delivery_types: ['in_app', 'push'],
+          data: {
+            campaign_id: campaignId,
+            campaign_name: campaignName,
+            campaign_title: campaignTitle,
+            campaign_description: campaignDescription,
+            media_url: mediaUrl || null,
+          },
+        };
+
+        try {
+          const response = await axios.post<BroadcastNotificationsResponse>(
+            `${notificationServiceUrl}/api/notifications/broadcast`,
+            payload,
+            {
+              timeout: 30000, // 30 seconds per notification
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const broadcastResponse = response.data;
+          if (typeof broadcastResponse?.count === 'number' && broadcastResponse.count > 0) {
+            deliveredCount++;
+          }
+
+          if (Array.isArray(broadcastResponse?.errors) && broadcastResponse.errors.length > 0) {
+            errors.push({
+              userId: user.id,
+              userName,
+              errors: broadcastResponse.errors,
+            });
+          }
+        } catch (err) {
+          const detail = (err as any)?.response?.data ?? (err as any)?.message ?? err;
+          errors.push({
+            userId: user.id,
+            userName,
+            error: detail,
+          });
+        }
       }
-    );
-
-    const broadcastResponse = response.data;
-    const deliveredCount =
-      typeof broadcastResponse?.count === 'number'
-        ? broadcastResponse.count
-        : userIds.length;
-
-    const errors = Array.isArray(broadcastResponse?.errors)
-      ? broadcastResponse.errors
-      : [];
+    }
 
     if (errors.length > 0) {
       console.warn(
-        'Campaign broadcast completed with partial errors:',
-        errors
+        `Campaign broadcast completed with ${errors.length} errors:`,
+        errors.slice(0, 5) // Log only first 5 errors
       );
     }
 
@@ -166,7 +254,7 @@ export const broadcastCampaignNotifications = async (
     );
 
     return {
-      success: true,
+      success: errors.length === 0,
       deliveredCount,
       errors,
     };

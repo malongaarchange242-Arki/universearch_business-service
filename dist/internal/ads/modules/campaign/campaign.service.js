@@ -187,7 +187,7 @@ class CampaignService {
             }
             // Envoyer les notifications
             console.log('🚀 Calling broadcastCampaignNotifications with', targetUserIds.length, 'users');
-            const result = await (0, campaign_notifications_1.broadcastCampaignNotifications)(targetUserIds, campaign.id || '', institutionName, campaign.title, campaign.description || '', campaign.media_url, campaignInput.notification_message);
+            const result = await (0, campaign_notifications_1.broadcastCampaignNotifications)(this.supabase, targetUserIds, campaign.id || '', institutionName, campaign.title, campaign.description || '', campaign.media_url, campaignInput.notification_message);
             console.log(`✅ Campaign notifications sent: ${result.deliveredCount}/${targetUserIds.length}`);
         }
         catch (err) {
@@ -313,7 +313,7 @@ class CampaignService {
                 }
             }
             // Envoyer les notifications
-            const result = await (0, campaign_notifications_1.broadcastCampaignNotifications)(targetUserIds, campaign.id || '', institutionName, campaign.title, campaign.description || '', campaign.media_url, campaign.notification_message);
+            const result = await (0, campaign_notifications_1.broadcastCampaignNotifications)(this.supabase, targetUserIds, campaign.id || '', institutionName, campaign.title, campaign.description || '', campaign.media_url, campaign.notification_message);
             console.log(`✅ [DEBUG] Notifications envoyées: ${result.deliveredCount}/${targetUserIds.length}`);
             // Mettre à jour le flag pour indiquer que les notifications ont été envoyées
             await this.supabase

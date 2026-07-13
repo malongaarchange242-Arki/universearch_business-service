@@ -8,6 +8,7 @@ exports.deletePost = exports.updatePost = exports.getPost = exports.listViewerSc
 const supabase_js_1 = require("@supabase/supabase-js");
 const crypto_1 = require("crypto");
 const axios_1 = __importDefault(require("axios"));
+const notification_queue_1 = require("../../queues/notification.queue");
 const DEFAULT_NOTIFICATION_SERVICE_URL = 'https://universearch-notification-service.onrender.com';
 const normalizeCommentUserType = (type) => {
     const normalized = type?.toString().trim().toLowerCase() || '';
@@ -331,40 +332,17 @@ const createPost = async (supabase, authorId, authorType, payload) => {
     // 🚀 Trigger follower notifications via notification service
     try {
         if (isInstitutionAuthorType(authorType)) {
-            const followerIds = await getFollowers(supabase, authorId, authorType);
-            if (followerIds.length > 0) {
-                const entityInfo = await getEntityInfo(supabase, authorId, authorType);
-                const institutionName = entityInfo?.sigle ||
-                    entityInfo?.name ||
-                    'Institution';
-                const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL ||
-                    DEFAULT_NOTIFICATION_SERVICE_URL;
-                const response = await axios_1.default.post(`${notificationServiceUrl}/api/notifications/broadcast`, {
-                    type: 'new_post',
-                    title: 'Nouveau post',
-                    message: `${institutionName} a publié un nouveau post`,
-                    data: {
-                        post_id: createdPost.id,
-                        author_id: authorId,
-                        author_type: authorType,
-                        institution_id: entityInfo?.id,
-                        institution_name: entityInfo?.name,
-                        institution_sigle: entityInfo?.sigle,
-                        institution_logo_url: entityInfo?.logo_url,
-                        institution_description: entityInfo?.description,
-                    },
-                    user_ids: followerIds,
-                });
-                console.log('Notifications triggered for', followerIds.length, 'followers:', response.data);
-            }
-            else {
-                console.log('No followers to notify for', authorType, authorId);
-            }
+            await (0, notification_queue_1.addNotificationJob)({
+                postId: createdPost.id,
+                authorId,
+                authorType,
+            });
+            console.log('Queued follower notification job for post', createdPost.id, 'author', authorId);
         }
     }
     catch (err) {
-        console.error('Failed to trigger notifications:', err);
-        // Continue even if notification trigger fails
+        console.error('Failed to queue follower notification job:', err);
+        // Continue even if notification queueing fails
     }
     return createdPost;
 };

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cmd/main.js",
+    "start:notification-worker": "node dist/internal/content/workers/notification.worker.js",
     "dev": "ts-node cmd/main.ts"
   },
   "dependencies": {
