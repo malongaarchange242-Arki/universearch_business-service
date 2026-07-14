@@ -973,19 +973,48 @@ const enrichCommentsWithUsers = async (supabase: SupabaseClient, comments: any[]
   if (!comments || comments.length === 0) return [];
 
   const userIds = comments.map(c => c.user_id).filter(Boolean);
-  // Supabase/PostgREST expects string values in .in. queries to be quoted
-  // Build quoted list for use in OR filters targeting id/profile_id
-  const quotedIds = userIds.map(id => `'${String(id)}'`).join(',');
 
-  const { data: universities, error: uniError } = await supabase
-    .from('universites')
-    .select('id, profile_id, nom, sigle')
-    .or(`id.in.(${quotedIds}),profile_id.in.(${quotedIds})`);
+  // Fetch universities matching either id or profile_id safely using .in()
+  let universities: any[] = [];
+  let uniError: any = null;
+  if (userIds.length) {
+    const { data: uById, error: uByIdErr } = await supabase
+      .from('universites')
+      .select('id, profile_id, nom, sigle')
+      .in('id', userIds);
 
-  const { data: centers, error: centerError } = await supabase
-    .from('centres_formation')
-    .select('id, profile_id, nom, sigle')
-    .or(`id.in.(${quotedIds}),profile_id.in.(${quotedIds})`);
+    if (uByIdErr) uniError = uByIdErr;
+    else universities = universities.concat(uById || []);
+
+    const { data: uByProfile, error: uByProfileErr } = await supabase
+      .from('universites')
+      .select('id, profile_id, nom, sigle')
+      .in('profile_id', userIds);
+
+    if (uByProfileErr) uniError = uniError || uByProfileErr;
+    else universities = universities.concat(uByProfile || []);
+  }
+
+  // Fetch centers matching either id or profile_id safely using .in()
+  let centers: any[] = [];
+  let centerError: any = null;
+  if (userIds.length) {
+    const { data: cById, error: cByIdErr } = await supabase
+      .from('centres_formation')
+      .select('id, profile_id, nom, sigle')
+      .in('id', userIds);
+
+    if (cByIdErr) centerError = cByIdErr;
+    else centers = centers.concat(cById || []);
+
+    const { data: cByProfile, error: cByProfileErr } = await supabase
+      .from('centres_formation')
+      .select('id, profile_id, nom, sigle')
+      .in('profile_id', userIds);
+
+    if (cByProfileErr) centerError = centerError || cByProfileErr;
+    else centers = centers.concat(cByProfile || []);
+  }
 
   const { data: profiles, error: profileError } = await supabase
     .from('profiles')
