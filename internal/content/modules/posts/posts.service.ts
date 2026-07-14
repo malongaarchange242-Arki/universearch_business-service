@@ -404,6 +404,19 @@ const sendCommentNotification = async (
     commentPreview?: string;
   }
 ): Promise<void> => {
+  try {
+    console.log('sendCommentNotification ->', {
+      to: target.userId,
+      type: target.type,
+      title: target.title,
+      message: target.message,
+      postId: payload.postId,
+      parentCommentId: payload.parentCommentId,
+      actorUserId: payload.actorUserId,
+    });
+  } catch (_) {
+    // silent
+  }
   await axios.post(
     `${process.env.NOTIFICATION_SERVICE_URL || DEFAULT_NOTIFICATION_SERVICE_URL}/api/notifications`,
     {
@@ -755,6 +768,14 @@ export const createComment = async (
             (item) => item.userId === target.userId && item.type === target.type
           ) === index
       );
+      try {
+        console.log('createComment: notifying targets', {
+          postId,
+          parentCommentId,
+          actorUserId: userId,
+          targets: uniqueTargets.map((t) => ({ userId: t.userId, type: t.type })),
+        });
+      } catch (_) {}
 
       await Promise.all(
         uniqueTargets.map((target) =>
