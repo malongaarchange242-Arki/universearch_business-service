@@ -948,6 +948,17 @@ export const listViewerScopedComments = async (
       new Date(b.date_comment || b.created_at || 0).getTime()
   );
 
+  try {
+    console.log('listViewerScopedComments ->', {
+      postId,
+      viewerUserId,
+      ownCount: enrichedOwnComments.length,
+      repliesCount: repliesToViewerComments.length,
+      mergedCount: merged.length,
+      sampleReplies: repliesToViewerComments.slice(0, 5).map((r: any) => ({ id: r.id, user_id: r.user_id, parent_comment_id: r.parent_comment_id, user: r.user }))
+    });
+  } catch (_) {}
+
   return merged.map((comment: any) => ({
     ...comment,
     commentaire: comment.commentaire ?? comment.contenu,
@@ -961,21 +972,25 @@ export const listViewerScopedComments = async (
 const enrichCommentsWithUsers = async (supabase: SupabaseClient, comments: any[]): Promise<any[]> => {
   if (!comments || comments.length === 0) return [];
 
-  const userIds = comments.map(c => c.user_id);
+  const userIds = comments.map(c => c.user_id).filter(Boolean);
+  // Supabase/PostgREST expects string values in .in. queries to be quoted
+  // Build quoted list for use in OR filters targeting id/profile_id
+  const quotedIds = userIds.map(id => `'${String(id)}'`).join(',');
+
   const { data: universities, error: uniError } = await supabase
     .from('universites')
     .select('id, profile_id, nom, sigle')
-    .or(`id.in.(${userIds.join(',')}),profile_id.in.(${userIds.join(',')})`);
+    .or(`id.in.(${quotedIds}),profile_id.in.(${quotedIds})`);
 
   const { data: centers, error: centerError } = await supabase
     .from('centres_formation')
     .select('id, profile_id, nom, sigle')
-    .or(`id.in.(${userIds.join(',')}),profile_id.in.(${userIds.join(',')})`);
+    .or(`id.in.(${quotedIds}),profile_id.in.(${quotedIds})`);
 
   const { data: profiles, error: profileError } = await supabase
     .from('profiles')
     .select('id, nom, prenom, profile_type')
-    .in('id', userIds);
+    .in('id', userIds.length ? userIds : ['']);
 
   if (uniError) {
     console.error('Universities query error:', uniError);
@@ -1018,6 +1033,10 @@ const enrichCommentsWithUsers = async (supabase: SupabaseClient, comments: any[]
       type: normalizeCommentUserType(profile.profile_type),
     });
   });
+
+  try {
+    console.log('enrichCommentsWithUsers -> built userMap entries:', Array.from(userMap.entries()).slice(0, 10));
+  } catch (_) {}
 
   return comments.map(comment => {
     const userInfo = userMap.get(comment.user_id);
