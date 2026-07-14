@@ -11,6 +11,11 @@ export const createCommentSchema = {
         maxLength: 1000,
         description: 'Texte du commentaire'
       }
+      ,
+      parent_comment_id: {
+        type: ['string', 'null'],
+        description: 'Optionnel: identifiant du commentaire parent si c\u0027est une r\u00e9ponse'
+      }
     }
   }
 };

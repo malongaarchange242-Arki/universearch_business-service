@@ -3,9 +3,10 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+import * as PostsService from '../posts/posts.service';
 
 const DEFAULT_NOTIFICATION_SERVICE_URL =
-  'https://universearch-notification-service-3zw2.onrender.com';
+  'https://api.universearch.com';
 
 export interface LikeResponse {
   id: string;
@@ -16,6 +17,7 @@ export interface LikeResponse {
 
 export interface CommentPayload {
   commentaire: string;
+  parent_comment_id?: string | null;
 }
 
 export interface CommentResponse {
@@ -381,69 +383,20 @@ export const commentPost = async (
   userId: string,
   payload: CommentPayload
 ): Promise<CommentResponse> => {
-  // Vérifier que le post existe
-  const { data: post, error: postError } = await supabase
-    .from('posts')
-    .select('id, author_id, titre')
-    .eq('id', postId)
-    .single();
-
-  if (postError || !post) {
-    throw new Error('Post not found');
-  }
-
-  const commentId = randomUUID();
-  const now = new Date().toISOString();
-  const insertPayload = {
-    id: commentId,
-    post_id: postId,
-    user_id: userId,
-    contenu: payload.commentaire,
-    commentaire: payload.commentaire,
-    date_comment: now,
-  };
-
-  let { data, error } = await supabase
-    .from('post_comments')
-    .insert(insertPayload)
-    .select()
-    .single();
-
-  // Older schemas may not have the `commentaire` alias column.
-  if (error && error.message.includes('commentaire')) {
-    const fallback = await supabase
-      .from('post_comments')
-      .insert({
-        id: commentId,
-        post_id: postId,
-        user_id: userId,
-        contenu: payload.commentaire,
-        date_comment: now,
-      })
-      .select()
-      .single();
-
-    data = fallback.data;
-    error = fallback.error;
-  }
-
-  if (error) {
-    throw new Error(`Failed to comment post: ${error.message}`);
-  }
-
-  // 🔥 Sync événementiel vers PORA
-  void syncEngagementToPoraTable(supabase, postId, userId, 'comment');
-  
-  // 📢 Notifier le propriétaire
-  void notifyPostOwner(post.author_id, {
-    type: 'comment',
-    actorId: userId,
+  // Delegate creation & notification logic to PostsService so replies
+  // (parent_comment_id) trigger the same notification flow as web endpoint.
+  const created = await PostsService.createComment(
+    supabase,
+    userId,
     postId,
-    postTitle: post.titre,
-    body: `${userId} a commente votre post${post.titre ? `: "${post.titre}"` : ''}`,
-  });
+    payload.commentaire,
+    payload.parent_comment_id ?? null
+  );
 
-  return data;
+  // 🔥 Sync événementiel vers PORA (kept for analytics)
+  void syncEngagementToPoraTable(supabase, postId, userId, 'comment');
+
+  return created as CommentResponse;
 };
 
 /**
