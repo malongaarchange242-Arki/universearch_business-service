@@ -38,6 +38,10 @@ export interface Campaign {
 export class CampaignService {
   constructor(private supabase: SupabaseClient) {}
 
+  getSupabase(): SupabaseClient {
+    return this.supabase;
+  }
+
   async createCampaign(campaign: Omit<Campaign, 'id' | 'created_at'>): Promise<Campaign> {
     if (campaign.destination === 'carousel') {
       const slotToUse = campaign.carousel_slot;

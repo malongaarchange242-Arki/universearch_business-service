@@ -29,6 +29,7 @@ export interface Campaign {
 export declare class CampaignService {
     private supabase;
     constructor(supabase: SupabaseClient);
+    getSupabase(): SupabaseClient;
     createCampaign(campaign: Omit<Campaign, 'id' | 'created_at'>): Promise<Campaign>;
     /**
      * Envoyer les notifications pour une campagne lancée

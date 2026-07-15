@@ -7,6 +7,9 @@ class CampaignService {
     constructor(supabase) {
         this.supabase = supabase;
     }
+    getSupabase() {
+        return this.supabase;
+    }
     async createCampaign(campaign) {
         if (campaign.destination === 'carousel') {
             const slotToUse = campaign.carousel_slot;

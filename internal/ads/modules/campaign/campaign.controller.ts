@@ -205,11 +205,12 @@ export class CampaignController {
         throw error;
       }
 
+      const rows = Array.isArray(data) ? (data as Array<{ quartier?: string | null }>) : [];
       const quartiers = Array.from(
         new Set(
-          (data || [])
-            .map((row: any) => String(row?.quartier || '').trim())
-            .filter(Boolean)
+          rows
+            .map((row) => String(row?.quartier || '').trim())
+            .filter((value): value is string => Boolean(value))
         )
       ).sort((a, b) => a.localeCompare(b));
 

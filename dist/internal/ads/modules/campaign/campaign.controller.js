@@ -178,6 +178,26 @@ class CampaignController {
             reply.code(400).send({ success: false, error: error.message });
         }
     }
+    async getAvailableQuartiers(request, reply) {
+        try {
+            const { data, error } = await this.campaignService.getSupabase()
+                .from('profiles')
+                .select('quartier')
+                .not('quartier', 'is', null)
+                .neq('quartier', '');
+            if (error) {
+                throw error;
+            }
+            const rows = Array.isArray(data) ? data : [];
+            const quartiers = Array.from(new Set(rows
+                .map((row) => String(row?.quartier || '').trim())
+                .filter((value) => Boolean(value)))).sort((a, b) => a.localeCompare(b));
+            reply.send({ success: true, data: quartiers });
+        }
+        catch (error) {
+            reply.code(500).send({ success: false, error: error.message });
+        }
+    }
 }
 exports.CampaignController = CampaignController;
 //# sourceMappingURL=campaign.controller.js.map
