@@ -112,7 +112,7 @@ class DeliveryService {
         try {
             const { data: profileData, error: profileError } = await this.supabase
                 .from('profiles')
-                .select('profile_type, genre, date_naissance')
+                .select('profile_type, genre, date_naissance, quartier')
                 .eq('id', userProfile.user_id)
                 .maybeSingle();
             if (profileError) {
@@ -121,6 +121,9 @@ class DeliveryService {
             }
             if (!enrichedProfile.gender) {
                 enrichedProfile.gender = this.normalizeGender(profileData?.genre);
+            }
+            if (!enrichedProfile.quartier && profileData?.quartier) {
+                enrichedProfile.quartier = profileData.quartier;
             }
             if (typeof enrichedProfile.age !== 'number') {
                 enrichedProfile.age = this.calculateAge(profileData?.date_naissance);
@@ -250,6 +253,15 @@ class DeliveryService {
             const userLocation = String(userProfile.location || '').trim().toLowerCase();
             if (!userLocation || userLocation !== campaignLocation) {
                 console.log(`[matchesUserProfile] Ad ${campaign.id} filtered: location mismatch (ad="${campaignLocation}", user="${userProfile.location}")`);
+                return false;
+            }
+        }
+        // Quartier matching
+        const campaignQuartier = String(campaign.quartier || '').trim().toLowerCase();
+        if (campaignQuartier && !['all', 'tous', 'toutes'].includes(campaignQuartier)) {
+            const userQuartier = String(userProfile.quartier || '').trim().toLowerCase();
+            if (!userQuartier || userQuartier !== campaignQuartier) {
+                console.log(`[matchesUserProfile] Ad ${campaign.id} filtered: quartier mismatch (ad="${campaignQuartier}", user="${userProfile.quartier}")`);
                 return false;
             }
         }

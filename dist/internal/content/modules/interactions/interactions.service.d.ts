@@ -7,6 +7,7 @@ export interface LikeResponse {
 }
 export interface CommentPayload {
     commentaire: string;
+    parent_comment_id?: string | null;
 }
 export interface CommentResponse {
     id: string;

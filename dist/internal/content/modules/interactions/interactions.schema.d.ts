@@ -9,6 +9,10 @@ export declare const createCommentSchema: {
                 maxLength: number;
                 description: string;
             };
+            parent_comment_id: {
+                type: string[];
+                description: string;
+            };
         };
     };
 };

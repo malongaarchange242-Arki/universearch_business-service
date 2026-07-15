@@ -17,6 +17,9 @@ export async function campaignRoutes(app: FastifyInstance) {
   // GET /ads/campaign/:id
   app.get('/campaign/:id', campaignController.getCampaign.bind(campaignController));
 
+  // GET /ads/quartiers
+  app.get('/quartiers', campaignController.getAvailableQuartiers.bind(campaignController));
+
   // PATCH /ads/campaign/:id
   app.patch('/campaign/:id', campaignController.updateCampaign.bind(campaignController));
 

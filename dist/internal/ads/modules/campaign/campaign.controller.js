@@ -22,6 +22,7 @@ const baseCampaignSchema = zod_1.z.object({
     target_age: ageFieldSchema,
     age_tolerance: ageFieldSchema,
     location: zod_1.z.string().optional(),
+    quartier: zod_1.z.string().optional(),
     status: zod_1.z.enum(['active', 'inactive']).optional(),
     send_notifications: zod_1.z.boolean().optional(),
     notification_message: zod_1.z.string().optional(),

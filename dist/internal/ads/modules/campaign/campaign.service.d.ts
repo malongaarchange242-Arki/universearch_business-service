@@ -18,6 +18,7 @@ export interface Campaign {
     target_age?: number;
     age_tolerance?: number;
     location?: string;
+    quartier?: string;
     status?: 'active' | 'inactive';
     created_at?: string;
     institution_id?: string;

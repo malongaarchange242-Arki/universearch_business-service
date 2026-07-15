@@ -26,6 +26,7 @@ export interface Campaign {
   target_age?: number;
   age_tolerance?: number;
   location?: string;
+  quartier?: string;
   status?: 'active' | 'inactive';
   created_at?: string;
   institution_id?: string;
@@ -66,6 +67,7 @@ export class CampaignService {
             target_age: campaign.target_age,
             age_tolerance: campaign.age_tolerance,
             location: campaign.location,
+            quartier: campaign.quartier,
             status: campaign.status,
             send_notifications: campaign.send_notifications,
             notification_message: campaign.notification_message,

@@ -240,6 +240,20 @@ const resolveCommentActorEntity = async (supabase, actorId, actorRole) => {
     return resolveAuthorEntity(supabase, actorId, 'centre_formation');
 };
 const sendCommentNotification = async (target, payload) => {
+    try {
+        console.log('sendCommentNotification ->', {
+            to: target.userId,
+            type: target.type,
+            title: target.title,
+            message: target.message,
+            postId: payload.postId,
+            parentCommentId: payload.parentCommentId,
+            actorUserId: payload.actorUserId,
+        });
+    }
+    catch (_) {
+        // silent
+    }
     await axios_1.default.post(`${process.env.NOTIFICATION_SERVICE_URL || DEFAULT_NOTIFICATION_SERVICE_URL}/api/notifications`, {
         user_id: target.userId,
         type: target.type,
@@ -505,6 +519,15 @@ const createComment = async (supabase, userId, postId, contenu, parentCommentId,
                 }
             }
             const uniqueTargets = targets.filter((target, index, list) => list.findIndex((item) => item.userId === target.userId && item.type === target.type) === index);
+            try {
+                console.log('createComment: notifying targets', {
+                    postId,
+                    parentCommentId,
+                    actorUserId: userId,
+                    targets: uniqueTargets.map((t) => ({ userId: t.userId, type: t.type })),
+                });
+            }
+            catch (_) { }
             await Promise.all(uniqueTargets.map((target) => sendCommentNotification(target, {
                 actorUserId: userId,
                 actorRole,
@@ -640,6 +663,17 @@ const listViewerScopedComments = async (supabase, postId, viewerUserId, limit = 
         comment.user_id !== viewerUserId);
     const merged = [...enrichedOwnComments, ...repliesToViewerComments].sort((a, b) => new Date(a.date_comment || a.created_at || 0).getTime() -
         new Date(b.date_comment || b.created_at || 0).getTime());
+    try {
+        console.log('listViewerScopedComments ->', {
+            postId,
+            viewerUserId,
+            ownCount: enrichedOwnComments.length,
+            repliesCount: repliesToViewerComments.length,
+            mergedCount: merged.length,
+            sampleReplies: repliesToViewerComments.slice(0, 5).map((r) => ({ id: r.id, user_id: r.user_id, parent_comment_id: r.parent_comment_id, user: r.user }))
+        });
+    }
+    catch (_) { }
     return merged.map((comment) => ({
         ...comment,
         commentaire: comment.commentaire ?? comment.contenu,
@@ -653,19 +687,53 @@ exports.listViewerScopedComments = listViewerScopedComments;
 const enrichCommentsWithUsers = async (supabase, comments) => {
     if (!comments || comments.length === 0)
         return [];
-    const userIds = comments.map(c => c.user_id);
-    const { data: universities, error: uniError } = await supabase
-        .from('universites')
-        .select('id, profile_id, nom, sigle')
-        .or(`id.in.(${userIds.join(',')}),profile_id.in.(${userIds.join(',')})`);
-    const { data: centers, error: centerError } = await supabase
-        .from('centres_formation')
-        .select('id, profile_id, nom, sigle')
-        .or(`id.in.(${userIds.join(',')}),profile_id.in.(${userIds.join(',')})`);
+    const userIds = comments.map(c => c.user_id).filter(Boolean);
+    // Fetch universities matching either id or profile_id safely using .in()
+    let universities = [];
+    let uniError = null;
+    if (userIds.length) {
+        const { data: uById, error: uByIdErr } = await supabase
+            .from('universites')
+            .select('id, profile_id, nom, sigle')
+            .in('id', userIds);
+        if (uByIdErr)
+            uniError = uByIdErr;
+        else
+            universities = universities.concat(uById || []);
+        const { data: uByProfile, error: uByProfileErr } = await supabase
+            .from('universites')
+            .select('id, profile_id, nom, sigle')
+            .in('profile_id', userIds);
+        if (uByProfileErr)
+            uniError = uniError || uByProfileErr;
+        else
+            universities = universities.concat(uByProfile || []);
+    }
+    // Fetch centers matching either id or profile_id safely using .in()
+    let centers = [];
+    let centerError = null;
+    if (userIds.length) {
+        const { data: cById, error: cByIdErr } = await supabase
+            .from('centres_formation')
+            .select('id, profile_id, nom, sigle')
+            .in('id', userIds);
+        if (cByIdErr)
+            centerError = cByIdErr;
+        else
+            centers = centers.concat(cById || []);
+        const { data: cByProfile, error: cByProfileErr } = await supabase
+            .from('centres_formation')
+            .select('id, profile_id, nom, sigle')
+            .in('profile_id', userIds);
+        if (cByProfileErr)
+            centerError = centerError || cByProfileErr;
+        else
+            centers = centers.concat(cByProfile || []);
+    }
     const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, nom, prenom, profile_type')
-        .in('id', userIds);
+        .in('id', userIds.length ? userIds : ['']);
     if (uniError) {
         console.error('Universities query error:', uniError);
     }
@@ -701,6 +769,10 @@ const enrichCommentsWithUsers = async (supabase, comments) => {
             type: normalizeCommentUserType(profile.profile_type),
         });
     });
+    try {
+        console.log('enrichCommentsWithUsers -> built userMap entries:', Array.from(userMap.entries()).slice(0, 10));
+    }
+    catch (_) { }
     return comments.map(comment => {
         const userInfo = userMap.get(comment.user_id);
         return {

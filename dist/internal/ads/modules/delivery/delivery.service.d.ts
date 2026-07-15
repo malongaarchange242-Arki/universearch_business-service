@@ -29,6 +29,7 @@ interface UserProfile {
     user_id?: string;
     age?: number;
     location?: string;
+    quartier?: string;
 }
 export declare class DeliveryService {
     private supabase;

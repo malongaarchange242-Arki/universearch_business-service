@@ -1,5 +1,38 @@
 "use strict";
 // src/modules/interactions/interactions.service.ts
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,7 +40,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPostViews = exports.recordPostView = exports.getComments = exports.commentPost = exports.unlikePost = exports.likePost = exports.isPostLikedByUser = exports.getViewCooldownMs = void 0;
 const axios_1 = __importDefault(require("axios"));
 const crypto_1 = require("crypto");
-const DEFAULT_NOTIFICATION_SERVICE_URL = 'https://universearch-notification-service-3zw2.onrender.com';
+const PostsService = __importStar(require("../posts/posts.service"));
+const DEFAULT_NOTIFICATION_SERVICE_URL = 'https://api.universearch.com';
 const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL || DEFAULT_NOTIFICATION_SERVICE_URL;
 const parsedPostViewCooldownMs = Number(process.env.POST_VIEW_COOLDOWN_MS);
 const parsedProfileViewCooldownMs = Number(process.env.PROFILE_VIEW_COOLDOWN_MS);
@@ -248,60 +282,12 @@ exports.unlikePost = unlikePost;
  * Commenter un post
  */
 const commentPost = async (supabase, postId, userId, payload) => {
-    // Vérifier que le post existe
-    const { data: post, error: postError } = await supabase
-        .from('posts')
-        .select('id, author_id, titre')
-        .eq('id', postId)
-        .single();
-    if (postError || !post) {
-        throw new Error('Post not found');
-    }
-    const commentId = (0, crypto_1.randomUUID)();
-    const now = new Date().toISOString();
-    const insertPayload = {
-        id: commentId,
-        post_id: postId,
-        user_id: userId,
-        contenu: payload.commentaire,
-        commentaire: payload.commentaire,
-        date_comment: now,
-    };
-    let { data, error } = await supabase
-        .from('post_comments')
-        .insert(insertPayload)
-        .select()
-        .single();
-    // Older schemas may not have the `commentaire` alias column.
-    if (error && error.message.includes('commentaire')) {
-        const fallback = await supabase
-            .from('post_comments')
-            .insert({
-            id: commentId,
-            post_id: postId,
-            user_id: userId,
-            contenu: payload.commentaire,
-            date_comment: now,
-        })
-            .select()
-            .single();
-        data = fallback.data;
-        error = fallback.error;
-    }
-    if (error) {
-        throw new Error(`Failed to comment post: ${error.message}`);
-    }
-    // 🔥 Sync événementiel vers PORA
+    // Delegate creation & notification logic to PostsService so replies
+    // (parent_comment_id) trigger the same notification flow as web endpoint.
+    const created = await PostsService.createComment(supabase, userId, postId, payload.commentaire, payload.parent_comment_id ?? null);
+    // 🔥 Sync événementiel vers PORA (kept for analytics)
     void syncEngagementToPoraTable(supabase, postId, userId, 'comment');
-    // 📢 Notifier le propriétaire
-    void notifyPostOwner(post.author_id, {
-        type: 'comment',
-        actorId: userId,
-        postId,
-        postTitle: post.titre,
-        body: `${userId} a commente votre post${post.titre ? `: "${post.titre}"` : ''}`,
-    });
-    return data;
+    return created;
 };
 exports.commentPost = commentPost;
 /**

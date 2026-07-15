@@ -24,6 +24,7 @@ const baseCampaignSchema = z.object({
   target_age: ageFieldSchema,
   age_tolerance: ageFieldSchema,
   location: z.string().optional(),
+  quartier: z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
   send_notifications: z.boolean().optional(),
   notification_message: z.string().optional(),
@@ -189,6 +190,32 @@ export class CampaignController {
       reply.send({ success: true, data: result });
     } catch (error) {
       reply.code(400).send({ success: false, error: (error as Error).message });
+    }
+  }
+
+  async getAvailableQuartiers(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { data, error } = await this.campaignService.getSupabase()
+        .from('profiles')
+        .select('quartier')
+        .not('quartier', 'is', null)
+        .neq('quartier', '');
+
+      if (error) {
+        throw error;
+      }
+
+      const quartiers = Array.from(
+        new Set(
+          (data || [])
+            .map((row: any) => String(row?.quartier || '').trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+
+      reply.send({ success: true, data: quartiers });
+    } catch (error) {
+      reply.code(500).send({ success: false, error: (error as Error).message });
     }
   }
 }
