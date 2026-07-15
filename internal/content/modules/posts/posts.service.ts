@@ -656,6 +656,8 @@ export const createComment = async (
     insertObj.parent_comment_id = parentCommentId;
   }
 
+  let commentRecord: any = null;
+
   const { data, error } = await supabase
     .from('post_comments')
     .insert(insertObj)
@@ -690,13 +692,12 @@ export const createComment = async (
         throw new Error(`Failed to create comment: ${fallbackError.message}`);
       }
 
-      return {
-        ...fallbackData,
-        commentaire: fallbackData?.commentaire ?? fallbackData?.contenu,
-        parent_comment_id: fallbackData?.parent_comment_id ?? null,
-      };
+      commentRecord = fallbackData;
+    } else {
+      throw new Error(`Failed to create comment: ${error.message}`);
     }
-    throw new Error(`Failed to create comment: ${error.message}`);
+  } else {
+    commentRecord = data;
   }
 
   void (async () => {
@@ -803,9 +804,9 @@ export const createComment = async (
   })();
 
   return {
-    ...data,
-    commentaire: data.commentaire ?? data.contenu,
-    parent_comment_id: data.parent_comment_id ?? parentCommentId ?? null,
+    ...commentRecord,
+    commentaire: commentRecord?.commentaire ?? commentRecord?.contenu,
+    parent_comment_id: commentRecord?.parent_comment_id ?? parentCommentId ?? null,
   };
 };
 

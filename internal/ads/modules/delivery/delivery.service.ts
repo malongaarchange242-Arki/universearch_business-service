@@ -389,10 +389,10 @@ export class DeliveryService {
   }
 
   /**
-   * Récupère les annonces pour le carousel (limité à 7 APRÈS filtrage par défaut)
-   * ✅ CORRECT: FETCH → FILTER → LIMIT
+   * Récupère les annonces pour le carousel sans limite artificielle.
+   * Le filtrage se fait avant la réponse finale, et tous les résultats valides sont renvoyés.
    */
-  async getCarouselAds(userProfile: UserProfile = {}, limit: number | null = 7): Promise<CarouselAd[]> {
+  async getCarouselAds(userProfile: UserProfile = {}, limit: number | null = null): Promise<CarouselAd[]> {
     try {
       const resolvedUserProfile = await this.enrichUserProfile(userProfile);
 
@@ -432,11 +432,11 @@ export class DeliveryService {
       
       console.log(`[getCarouselAds] Ads after filtering: ${filteredCampaigns.length}`);
 
-      // 3️⃣ LIMIT: Limiter selon le paramètre `limit` (défaut 7)
-      const limitedCampaigns = this.applyLimit(filteredCampaigns, limit);
+      // 3️⃣ LIMIT: Limiter seulement si un paramètre explicite est fourni.
+      const visibleCampaigns = this.applyLimit(filteredCampaigns, limit);
 
       // Map to CarouselAd interface
-      const ads: CarouselAd[] = limitedCampaigns.map((campaign, index) => ({
+      const ads: CarouselAd[] = visibleCampaigns.map((campaign, index) => ({
         id: campaign.id,
         campaignId: campaign.id,
         title: campaign.title,

@@ -55,8 +55,8 @@ export declare class DeliveryService {
      */
     private matchesUserProfile;
     /**
-     * Récupère les annonces pour le carousel (limité à 7 APRÈS filtrage par défaut)
-     * ✅ CORRECT: FETCH → FILTER → LIMIT
+     * Récupère les annonces pour le carousel sans limite artificielle.
+     * Le filtrage se fait avant la réponse finale, et tous les résultats valides sont renvoyés.
      */
     getCarouselAds(userProfile?: UserProfile, limit?: number | null): Promise<CarouselAd[]>;
     /**

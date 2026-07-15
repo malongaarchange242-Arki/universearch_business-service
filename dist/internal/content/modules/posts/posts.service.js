@@ -435,6 +435,7 @@ const createComment = async (supabase, userId, postId, contenu, parentCommentId,
     if (parentCommentId) {
         insertObj.parent_comment_id = parentCommentId;
     }
+    let commentRecord = null;
     const { data, error } = await supabase
         .from('post_comments')
         .insert(insertObj)
@@ -462,13 +463,14 @@ const createComment = async (supabase, userId, postId, contenu, parentCommentId,
             if (fallbackError) {
                 throw new Error(`Failed to create comment: ${fallbackError.message}`);
             }
-            return {
-                ...fallbackData,
-                commentaire: fallbackData?.commentaire ?? fallbackData?.contenu,
-                parent_comment_id: fallbackData?.parent_comment_id ?? null,
-            };
+            commentRecord = fallbackData;
         }
-        throw new Error(`Failed to create comment: ${error.message}`);
+        else {
+            throw new Error(`Failed to create comment: ${error.message}`);
+        }
+    }
+    else {
+        commentRecord = data;
     }
     void (async () => {
         try {
@@ -549,9 +551,9 @@ const createComment = async (supabase, userId, postId, contenu, parentCommentId,
         }
     })();
     return {
-        ...data,
-        commentaire: data.commentaire ?? data.contenu,
-        parent_comment_id: data.parent_comment_id ?? parentCommentId ?? null,
+        ...commentRecord,
+        commentaire: commentRecord?.commentaire ?? commentRecord?.contenu,
+        parent_comment_id: commentRecord?.parent_comment_id ?? parentCommentId ?? null,
     };
 };
 exports.createComment = createComment;
