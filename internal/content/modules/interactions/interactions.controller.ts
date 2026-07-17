@@ -1,6 +1,7 @@
 // src/modules/interactions/interactions.controller.ts
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { SupabaseClient } from '@supabase/supabase-js';
 import * as InteractionsService from './interactions.service';
 import { resolveAuthenticatedUser } from '../../middleware/authenticate';
 

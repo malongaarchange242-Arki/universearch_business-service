@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPostViews = exports.recordPostView = exports.getComments = exports.commentPost = exports.unlikePost = exports.likePost = exports.isPostLikedByUser = exports.getViewCooldownMs = void 0;
+exports.deleteComment = exports.getPostViews = exports.recordPostView = exports.getComments = exports.commentPost = exports.unlikePost = exports.likePost = exports.isPostLikedByUser = exports.getViewCooldownMs = void 0;
 const axios_1 = __importDefault(require("axios"));
 const crypto_1 = require("crypto");
 const PostsService = __importStar(require("../posts/posts.service"));
@@ -436,4 +436,34 @@ const getPostViews = async (supabase, postId, page = 1, limit = 20) => {
     };
 };
 exports.getPostViews = getPostViews;
+/**
+ * Supprimer un commentaire avec suppression en cascade des réponses
+ *
+ * Cascade de suppression:
+ * 1. Les réponses au commentaire (post_comments avec parent_comment_id = commentId) via ON DELETE CASCADE
+ * 2. Le commentaire lui-même (post_comments)
+ */
+const deleteComment = async (supabase, commentId, userId) => {
+    // Vérifier que le commentaire existe et appartient à l'utilisateur
+    const { data: comment, error: fetchError } = await supabase
+        .from('post_comments')
+        .select('id, user_id, post_id')
+        .eq('id', commentId)
+        .single();
+    if (fetchError || !comment) {
+        throw new Error('Comment not found');
+    }
+    if (comment.user_id !== userId) {
+        throw new Error('Unauthorized: You can only delete your own comments');
+    }
+    // Supprimer le commentaire (les réponses seront supprimées via ON DELETE CASCADE)
+    const { error } = await supabase
+        .from('post_comments')
+        .delete()
+        .eq('id', commentId);
+    if (error) {
+        throw new Error(`Failed to delete comment: ${error.message}`);
+    }
+};
+exports.deleteComment = deleteComment;
 //# sourceMappingURL=interactions.service.js.map

@@ -59,6 +59,11 @@ const interactionsRoutes = async (app, _options) => {
         preHandler: [middleware_1.authenticate],
     }, InteractionsController.commentPost);
     /**
+     * DELETE /posts/:id/comment/:commentId - Supprimer un commentaire
+     * Protégé: authentifié
+     */
+    app.delete('/posts/:id/comment/:commentId', { preHandler: [middleware_1.authenticate] }, InteractionsController.deleteComment);
+    /**
      * POST /posts/:id/view - Enregistrer une vue
      * Public, avec user_id si Authorization fournie
      */

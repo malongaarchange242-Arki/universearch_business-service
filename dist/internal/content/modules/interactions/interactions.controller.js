@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getViews = exports.recordView = exports.getComments = exports.commentPost = exports.unlikePost = exports.likePost = exports.getLikeStatus = void 0;
+exports.deleteComment = exports.getViews = exports.recordView = exports.getComments = exports.commentPost = exports.unlikePost = exports.likePost = exports.getLikeStatus = void 0;
 const InteractionsService = __importStar(require("./interactions.service"));
 const authenticate_1 = require("../../middleware/authenticate");
 const getLikeStatus = async (request, reply) => {
@@ -211,4 +211,33 @@ const getViews = async (request, reply) => {
     }
 };
 exports.getViews = getViews;
+/**
+ * Supprimer un commentaire
+ * DELETE /posts/:id/comment/:commentId
+ */
+const deleteComment = async (request, reply) => {
+    try {
+        const user = request.user;
+        if (!user?.id) {
+            reply.status(401).send({ success: false, error: 'Unauthorized' });
+            return;
+        }
+        const supabase = request.supabase;
+        await InteractionsService.deleteComment(supabase, request.params.commentId, user.id);
+        reply.send({
+            success: true,
+            message: 'Comment deleted successfully',
+        });
+    }
+    catch (error) {
+        request.log.error(error);
+        const message = error.message;
+        const statusCode = message.includes('Unauthorized') ? 403 : 400;
+        reply.status(statusCode).send({
+            success: false,
+            error: message,
+        });
+    }
+};
+exports.deleteComment = deleteComment;
 //# sourceMappingURL=interactions.controller.js.map

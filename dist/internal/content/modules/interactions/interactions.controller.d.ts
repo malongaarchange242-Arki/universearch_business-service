@@ -63,4 +63,14 @@ export declare const getViews: (request: FastifyRequest<{
         limit?: number;
     };
 }>, reply: FastifyReply) => Promise<void>;
+/**
+ * Supprimer un commentaire
+ * DELETE /posts/:id/comment/:commentId
+ */
+export declare const deleteComment: (request: FastifyRequest<{
+    Params: {
+        id: string;
+        commentId: string;
+    };
+}>, reply: FastifyReply) => Promise<void>;
 //# sourceMappingURL=interactions.controller.d.ts.map

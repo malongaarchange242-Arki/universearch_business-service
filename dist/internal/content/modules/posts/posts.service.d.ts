@@ -78,7 +78,14 @@ export declare const getPost: (supabase: SupabaseClient, postId: string) => Prom
  */
 export declare const updatePost: (supabase: SupabaseClient, postId: string, authorId: string, payload: UpdatePostPayload) => Promise<PostResponse>;
 /**
- * Supprimer un post
+ * Supprimer un post avec suppression en cascade de tous les éléments associés
+ *
+ * Cascade de suppression:
+ * 1. Les likes du post (post_likes)
+ * 2. Les commentaires et leurs réponses (post_comments avec ON DELETE CASCADE)
+ * 3. Les vues du post (post_views)
+ * 4. Les partages du post (post_shares)
+ * 5. Le post lui-même (posts)
  */
 export declare const deletePost: (supabase: SupabaseClient, postId: string, authorId: string) => Promise<void>;
 //# sourceMappingURL=posts.service.d.ts.map

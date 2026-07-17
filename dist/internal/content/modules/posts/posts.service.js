@@ -855,10 +855,17 @@ const updatePost = async (supabase, postId, authorId, payload) => {
 };
 exports.updatePost = updatePost;
 /**
- * Supprimer un post
+ * Supprimer un post avec suppression en cascade de tous les éléments associés
+ *
+ * Cascade de suppression:
+ * 1. Les likes du post (post_likes)
+ * 2. Les commentaires et leurs réponses (post_comments avec ON DELETE CASCADE)
+ * 3. Les vues du post (post_views)
+ * 4. Les partages du post (post_shares)
+ * 5. Le post lui-même (posts)
  */
 const deletePost = async (supabase, postId, authorId) => {
-    // VÃƒÂ©rifier que l'auteur du post est bien l'auteur connectÃƒÂ©
+    // Vérifier que l'auteur du post est bien l'auteur connecté
     const { data: post, error: fetchError } = await supabase
         .from('posts')
         .select('author_id')
@@ -870,12 +877,15 @@ const deletePost = async (supabase, postId, authorId) => {
     if (post.author_id !== authorId) {
         throw new Error('Unauthorized: You can only delete your own posts');
     }
-    // Supprimer les likes
+    // Supprimer les likes du post
     await supabase.from('post_likes').delete().eq('post_id', postId);
-    // Supprimer les commentaires
+    // Supprimer les commentaires (et les réponses via ON DELETE CASCADE)
+    // Note: ON DELETE CASCADE supprime aussi les réponses aux commentaires
     await supabase.from('post_comments').delete().eq('post_id', postId);
-    // Supprimer les vues
+    // Supprimer les vues du post
     await supabase.from('post_views').delete().eq('post_id', postId);
+    // Supprimer les partages du post
+    await supabase.from('post_shares').delete().eq('post_id', postId);
     // Supprimer le post
     const { error } = await supabase.from('posts').delete().eq('id', postId);
     if (error) {

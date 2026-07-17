@@ -63,4 +63,12 @@ export declare const getPostViews: (supabase: SupabaseClient, postId: string, pa
     page: number;
     limit: number;
 }>;
+/**
+ * Supprimer un commentaire avec suppression en cascade des réponses
+ *
+ * Cascade de suppression:
+ * 1. Les réponses au commentaire (post_comments avec parent_comment_id = commentId) via ON DELETE CASCADE
+ * 2. Le commentaire lui-même (post_comments)
+ */
+export declare const deleteComment: (supabase: SupabaseClient, commentId: string, userId: string) => Promise<void>;
 //# sourceMappingURL=interactions.service.d.ts.map
