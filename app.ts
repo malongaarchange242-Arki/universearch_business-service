@@ -24,9 +24,22 @@ app.setErrorHandler((error, request, reply) => {
 
 export const initializeApp = async () => {
   await app.register(cors, {
-    origin: true,
+    origin: [
+      'https://universearch-frontend.onrender.com',
+      'https://universearch.com',
+      'https://www.universearch.com',
+    ],
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Range',
+      'X-Requested-With',
+      'x-user-id',
+      'x-video-processing',
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Range'],
     credentials: true,
   });
 
