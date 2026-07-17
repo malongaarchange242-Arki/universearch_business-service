@@ -16,6 +16,10 @@ export const app: FastifyInstance = Fastify({
 
 app.setErrorHandler((error, request, reply) => {
   request.log.error(error);
+  reply.header('Access-Control-Allow-Origin', 'https://universearch-frontend.onrender.com');
+  reply.header('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,DELETE,PATCH,OPTIONS');
+  reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Range, X-Requested-With, x-user-id, x-video-processing');
+  reply.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
   reply.status(error.statusCode ?? 500).send({
     success: false,
     error: error.message ?? 'Internal Server Error',

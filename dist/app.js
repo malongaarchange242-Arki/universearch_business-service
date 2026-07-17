@@ -20,6 +20,10 @@ exports.app = (0, fastify_1.default)({
 });
 exports.app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
+    reply.header('Access-Control-Allow-Origin', 'https://universearch-frontend.onrender.com');
+    reply.header('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,DELETE,PATCH,OPTIONS');
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Range, X-Requested-With, x-user-id, x-video-processing');
+    reply.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
     reply.status(error.statusCode ?? 500).send({
         success: false,
         error: error.message ?? 'Internal Server Error',
@@ -27,9 +31,22 @@ exports.app.setErrorHandler((error, request, reply) => {
 });
 const initializeApp = async () => {
     await exports.app.register(cors_1.default, {
-        origin: true,
+        origin: [
+            'https://universearch-frontend.onrender.com',
+            'https://universearch.com',
+            'https://www.universearch.com',
+        ],
         methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'Accept',
+            'Range',
+            'X-Requested-With',
+            'x-user-id',
+            'x-video-processing',
+        ],
+        exposedHeaders: ['Content-Length', 'Content-Range'],
         credentials: true,
     });
     await exports.app.register(multipart_1.default, {
