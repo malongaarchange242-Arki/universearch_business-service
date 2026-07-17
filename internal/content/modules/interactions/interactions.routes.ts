@@ -53,6 +53,16 @@ export const interactionsRoutes = async (
   );
 
   /**
+   * DELETE /posts/:id/comment/:commentId - Supprimer un commentaire
+   * Protégé: authentifié
+   */
+  app.delete(
+    '/posts/:id/comment/:commentId',
+    { preHandler: [authenticate] },
+    InteractionsController.deleteComment as any
+  );
+
+  /**
    * POST /posts/:id/view - Enregistrer une vue
    * Public, avec user_id si Authorization fournie
    */

@@ -241,3 +241,41 @@ export const getViews = async (
     });
   }
 };
+
+/**
+ * Supprimer un commentaire
+ * DELETE /posts/:id/comment/:commentId
+ */
+export const deleteComment = async (
+  request: FastifyRequest<{ Params: { id: string; commentId: string } }>,
+  reply: FastifyReply
+): Promise<void> => {
+  try {
+    const user = (request as any).user;
+    if (!user?.id) {
+      reply.status(401).send({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const supabase = (request as any).supabase as SupabaseClient;
+
+    await InteractionsService.deleteComment(
+      supabase,
+      request.params.commentId,
+      user.id
+    );
+
+    reply.send({
+      success: true,
+      message: 'Comment deleted successfully',
+    });
+  } catch (error) {
+    request.log.error(error);
+    const message = (error as Error).message;
+    const statusCode = message.includes('Unauthorized') ? 403 : 400;
+    reply.status(statusCode).send({
+      success: false,
+      error: message,
+    });
+  }
+};
