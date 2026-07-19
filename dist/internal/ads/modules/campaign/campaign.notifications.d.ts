@@ -11,6 +11,7 @@ export interface CampaignNotificationPayload {
         campaign_title: string;
         campaign_description: string;
         media_url?: string | null;
+        media_type?: 'image' | 'video' | null;
     };
 }
 /**
@@ -23,7 +24,7 @@ export declare const getTargetUsers: (supabase: SupabaseClient, targetAudience: 
 /**
  * Envoyer des notifications broadcast pour une campagne avec personnalisation
  */
-export declare const broadcastCampaignNotifications: (supabase: SupabaseClient, userIds: string[], campaignId: string, campaignName: string, campaignTitle: string, campaignDescription: string, mediaUrl?: string | null, customMessage?: string) => Promise<{
+export declare const broadcastCampaignNotifications: (supabase: SupabaseClient, userIds: string[], campaignId: string, campaignName: string, campaignTitle: string, campaignDescription: string, mediaUrl?: string | null, customMessage?: string, mediaType?: "image" | "video" | null) => Promise<{
     success: boolean;
     deliveredCount: number;
     errors: unknown[];

@@ -86,9 +86,14 @@ const getTimeGreeting = () => {
 /**
  * Construire un message personnalisé avec le nom de l'utilisateur et le moment de la journée
  */
-const buildPersonalizedMessage = (userName, customMessage) => {
-    const baseMessage = customMessage ||
-        'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.';
+const getDefaultMessage = (mediaType) => {
+    if (mediaType === 'video') {
+        return 'Une nouvelle vidéo est disponible. Regarde-la sur la page Short.';
+    }
+    return 'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.';
+};
+const buildPersonalizedMessage = (userName, customMessage, mediaType) => {
+    const baseMessage = customMessage || getDefaultMessage(mediaType);
     if (!userName)
         return baseMessage;
     const greeting = getTimeGreeting() === 'matin' ? 'Bonjour' : 'Bonsoir';
@@ -98,7 +103,7 @@ const buildPersonalizedMessage = (userName, customMessage) => {
 /**
  * Envoyer des notifications broadcast pour une campagne avec personnalisation
  */
-const broadcastCampaignNotifications = async (supabase, userIds, campaignId, campaignName, campaignTitle, campaignDescription, mediaUrl, customMessage) => {
+const broadcastCampaignNotifications = async (supabase, userIds, campaignId, campaignName, campaignTitle, campaignDescription, mediaUrl, customMessage, mediaType) => {
     if (userIds.length === 0) {
         console.warn('No users to notify for campaign');
         return { success: true, deliveredCount: 0, errors: [] };
@@ -125,7 +130,7 @@ const broadcastCampaignNotifications = async (supabase, userIds, campaignId, cam
                 const payload = {
                     user_ids: [user.id],
                     type: 'campaign',
-                    title: 'Nouvelle annonce',
+                    title: mediaType === 'video' ? 'Nouvelle vidéo' : 'Nouvelle annonce',
                     message: personalizedMessage,
                     delivery_types: ['in_app', 'push'],
                     data: {
@@ -134,6 +139,7 @@ const broadcastCampaignNotifications = async (supabase, userIds, campaignId, cam
                         campaign_title: campaignTitle,
                         campaign_description: campaignDescription,
                         media_url: mediaUrl || null,
+                        media_type: mediaType || null,
                     },
                 };
                 try {

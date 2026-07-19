@@ -18,6 +18,7 @@ export interface CampaignNotificationPayload {
     campaign_title: string;
     campaign_description: string;
     media_url?: string | null;
+    media_type?: 'image' | 'video' | null;
   };
 }
 
@@ -126,13 +127,19 @@ const getTimeGreeting = (): 'matin' | 'soir' => {
 /**
  * Construire un message personnalisé avec le nom de l'utilisateur et le moment de la journée
  */
+const getDefaultMessage = (mediaType?: 'image' | 'video' | null): string => {
+  if (mediaType === 'video') {
+    return 'Une nouvelle vidéo est disponible. Regarde-la sur la page Short.';
+  }
+  return 'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.';
+};
+
 const buildPersonalizedMessage = (
   userName?: string,
-  customMessage?: string
+  customMessage?: string,
+  mediaType?: 'image' | 'video' | null
 ): string => {
-  const baseMessage =
-    customMessage ||
-    'Une nouvelle annonce est disponible. Découvrez-la sur la page d\'accueil.';
+  const baseMessage = customMessage || getDefaultMessage(mediaType);
 
   if (!userName) return baseMessage;
 
@@ -153,7 +160,8 @@ export const broadcastCampaignNotifications = async (
   campaignTitle: string,
   campaignDescription: string,
   mediaUrl?: string | null,
-  customMessage?: string
+  customMessage?: string,
+  mediaType?: 'image' | 'video' | null
 ): Promise<{ success: boolean; deliveredCount: number; errors: unknown[] }> => {
   if (userIds.length === 0) {
     console.warn('No users to notify for campaign');
@@ -195,7 +203,7 @@ export const broadcastCampaignNotifications = async (
         const payload: CampaignNotificationPayload = {
           user_ids: [user.id],
           type: 'campaign',
-          title: 'Nouvelle annonce',
+          title: mediaType === 'video' ? 'Nouvelle vidéo' : 'Nouvelle annonce',
           message: personalizedMessage,
           delivery_types: ['in_app', 'push'],
           data: {
@@ -204,6 +212,7 @@ export const broadcastCampaignNotifications = async (
             campaign_title: campaignTitle,
             campaign_description: campaignDescription,
             media_url: mediaUrl || null,
+            media_type: mediaType || null,
           },
         };
 

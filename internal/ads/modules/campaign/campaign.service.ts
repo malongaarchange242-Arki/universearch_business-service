@@ -272,7 +272,8 @@ export class CampaignService {
         campaign.title,
         campaign.description || '',
         campaign.media_url,
-        campaignInput.notification_message
+        campaignInput.notification_message,
+        campaign.media_type
       );
 
       console.log(`✅ Campaign notifications sent: ${result.deliveredCount}/${targetUserIds.length}`);
@@ -429,7 +430,8 @@ export class CampaignService {
         campaign.title,
         campaign.description || '',
         campaign.media_url,
-        campaign.notification_message
+        campaign.notification_message,
+        campaign.media_type
       );
 
       console.log(`✅ [DEBUG] Notifications envoyées: ${result.deliveredCount}/${targetUserIds.length}`);
